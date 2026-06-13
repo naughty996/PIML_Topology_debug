@@ -1,0 +1,14 @@
+{
+    "data_size": 50000,
+    "batch_size": 1024,
+    "initial_lr": 0.001,
+    "epochs": 2000,
+    "optimizer": "Adam",
+    "scheduler": "ReduceLROnPlateau(factor=0.5, patience=40, min_lr=1e-7)",
+    "architecture": "25->128->256->512->512->256->192",
+    "activation": "GELU",
+    "loss_function": "Relative L2 Error on 192d",
+    "data_distribution": "PolarB6",
+    "final_train_loss": 0.013865367424758997,
+    "final_test_l2": 0.0115154217928648
+}
