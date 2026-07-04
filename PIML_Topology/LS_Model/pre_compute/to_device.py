@@ -7,10 +7,7 @@ PASSTHROUGH_KEYS = {
 }
 
 LONG_KEYS = {
-    'ele_node', 'ele_dofs', 'fixeddofs', 'freedofs', 'i', 'j', 'ne', 'nd', 'ndof',
-    'ndof_free', 'n_step', 'full_row', 'full_col', 'full_inverse', 'n_full_nnz',
-    'free_row', 'free_col', 'free_inverse', 'free_entry_ids', 'n_free_nnz',
-    'cpu_spmv_backend_is_csr', 'cpu_csr_use_numba', 'hht_use_free_rhs_spmv', 'energy_use_free_spmv'
+    'ele_node', 'ele_dofs', 'fixeddofs', 'freedofs', 'Ke0', 'node_coordinate',
 }
 
 

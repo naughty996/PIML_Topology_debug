@@ -84,8 +84,8 @@ class FieldAssembler:
         :return: 形状为 (Batch_Size, 576) 的完整物理场预测
         """
         B = pred_192.shape[0]
-        # 克隆 baseline 并扩展至当前 Batch 大小
-        pred_576 = self.baseline.unsqueeze(0).repeat(B, 1).clone()
+        # 【核心修改】：克隆 baseline 之后，显式将精度同步提升至输入张量的精度 (float64)
+        pred_576 = self.baseline.unsqueeze(0).repeat(B, 1).clone().to(dtype=pred_192.dtype)
 
         # 将 192 维张量重塑为便于计算的空间通道格式 (B, 12个节点, 16个基向量分量)
         pred_192_ch = pred_192.view(B, 12, 16)
@@ -99,7 +99,7 @@ class FieldAssembler:
         # 拼接生成的 64 维冗余特征
         pred_64 = torch.cat([ch13, ch14, ch15, ch16], dim=1)
 
-        # 按照预设索引将预测值与推导值写回 576 维全局张量
+        # 此时所有张量均为 Double 精度，切片写回将完美通行
         pred_576[:, self.core_idx] = pred_192
         pred_576[:, self.p4_idx] = pred_64
         return pred_576

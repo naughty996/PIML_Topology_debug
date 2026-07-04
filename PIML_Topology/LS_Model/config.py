@@ -42,14 +42,15 @@ optimize_paras = {
 
     # FEM / material parameters.
     "E_min": 1e-6,                        # Ersatz lower bound. Reference: 1e-9 ~ 1e-4.
+    "H_d": 3.0,
 }
 
 cantilever = {
     "length": 8.0,        # Domain length in x direction.
     "height": 4.0,        # Domain height in y direction.
-    "thickness": 0.01,    # Plate thickness.
-    "nx": 200,            # Number of elements in x direction.
-    "ny": 100,            # Number of elements in y direction.
+    #"thickness": 0.01,    # Plate thickness.
+    "nx": 50,            # Number of elements in x direction.
+    "ny": 20,            # Number of elements in y direction.
     "E": 200e9,           # Solid material Young's modulus.
     "nu": 0.3,            # Poisson's ratio. Typical isotropic range: 0.2 ~ 0.35.
     "load_size": 1000.0,  # Load magnitude used by set_bc.py.

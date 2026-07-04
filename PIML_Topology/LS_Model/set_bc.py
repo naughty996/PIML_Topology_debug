@@ -2,18 +2,26 @@ import numpy as np
 
 
 def set_case(case, case_info):
+    """
+    配置 FEM 域、边界条件与静载荷。
+    移除了所有动力学相关的 nstep 参数。
+    """
     length, height = case_info['length'], case_info['height']
     nx, ny = case_info['nx'], case_info['ny']
     boundary_box = [0.0, length, 0.0, height]
-    load_size =case_info['load_size']
+    load_size = case_info['load_size']
 
     node_coordinate = set_fem_domain(0.0, length, nx, 0.0, height, ny)
     ele_node, ele_dofs = set_ele_node_connect(nx, ny)
     fixeddofs = set_constrain(node_coordinate, boundary_box, case)
-    load = set_load(node_coordinate, boundary_box, case, nstep, load_size)
-    u0 = np.zeros((2 * (nx + 1) * (ny + 1), 1), dtype=np.float64)
-    v0 = np.zeros((2 * (nx + 1) * (ny + 1), 1), dtype=np.float64)
-    return node_coordinate, ele_node, ele_dofs, fixeddofs, load, u0, v0
+
+    # 【核心修改】：彻底移除 nstep，直接传入 load_size
+    load = set_load(node_coordinate, boundary_box, case, amplitude=load_size)
+
+    # 初始位移与速度设为 0
+
+    return node_coordinate, ele_node, ele_dofs, fixeddofs, load
+
 
 def set_fem_domain(min_x, length, nx, min_y, height, ny):
     ndx = nx + 1
@@ -49,7 +57,7 @@ def initial_ls_func(nx, ny, domain, d, radio):
         ])
         hY = ny * np.array([
             0, 0, 1 / 2, 1 / 2, 1, 1,
-            1 / 4, 1 / 4, 1 / 4, 1 / 4, 3 / 4, 3 / 4, 3 / 4, 3 / 4, 1 / 2
+                  1 / 4, 1 / 4, 1 / 4, 1 / 4, 3 / 4, 3 / 4, 3 / 4, 3 / 4, 1 / 2
         ])
         dX = X[:, :, None] - hX[None, None, :]
         dY = Y[:, :, None] - hY[None, None, :]
@@ -60,39 +68,27 @@ def initial_ls_func(nx, ny, domain, d, radio):
     raise ValueError("domain must be 'single_hole', 'multi_holes', or 'no_hole'")
 
 
-def set_load(node, bbox, case, nstep=100, amplitude=1000.0):
-    """Build the time load history and its time-independent spatial pattern(s).
-
-    The QMDM static enrichment in the SIAD-QMDM paper uses the load spatial
-    distribution F_hat in F(t)=F_hat*xi(t).  Returning load_spatial_patterns
-    here makes that information explicit, instead of recovering it later from
-    the discrete time-load matrix.  For the current cantilever benchmark there
-    is one spatial pattern: a downward force at the loaded DOF.
-    """
+def set_load(node, bbox, case, amplitude=1000.0):
+    """构建静态空间载荷分布，强制返回 shape 为 (ndof, 1) 的列向量"""
     xmin, xmax, ymin, ymax = bbox
     eps = 0.1 * np.sqrt((xmax - xmin) * (ymax - ymin) / node.shape[0])
-    theta = np.linspace(0.0, np.pi, nstep + 1)
-    fx = np.zeros(nstep + 1, dtype=np.float64)
-    fy = np.zeros(nstep + 1, dtype=np.float64)
 
     ndof = 2 * node.shape[0]
+    # 【核心修改】：初始化为标准列向量 (ndof, 1)
+    load = np.zeros((ndof, 1), dtype=np.float64)
 
     if case == 'cantilever':
         candidates = np.where((np.abs(node[:, 0] - xmax) < eps) & (np.abs(node[:, 1] - ymax / 2) < eps))[0]
         if len(candidates) == 0:
             raise ValueError('No loaded node found for cantilever case.')
         loaded_node = int(candidates[0])
-        # Time history: F(t) = F_hat * sin(theta), with F_hat carrying the
-        # spatial location, direction and amplitude scale.  The sign matters;
-        # the absolute scale is later removed by basis orthonormalization.
-        # 改成静载荷
-        fy = -amplitude * np.sin(theta)
+
+        # 施加静载荷：X 方向为 0，Y 方向为负
+        load[2 * loaded_node, 0] = 0.0
+        load[2 * loaded_node + 1, 0] = -amplitude
     else:
         raise ValueError(f'Unsupported case: {case}')
-    # 载荷和位移都是列向量
-    load = np.zeros((ndof, 1), dtype=np.float64)
-    load[2 * loaded_node, :] = fx
-    load[2 * loaded_node + 1, :] = fy
+
     return load
 
 

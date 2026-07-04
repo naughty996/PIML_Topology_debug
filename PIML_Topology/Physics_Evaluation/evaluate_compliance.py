@@ -3,7 +3,7 @@
 # =========================================================================
 import sys
 import os
-import yaml
+from config import config
 import h5py
 import numpy as np
 import torch
@@ -25,8 +25,8 @@ def main():
     print(f"[*] 启动端到端设计相关压力物理合规考核 | 算力节点: {device}")
 
     # ================= 1. 读取全局物理/工程配置 =================
-    with open('config.yaml', 'r', encoding='utf-8') as f:
-        config = yaml.safe_load(f)
+    data_size = config['data']['data_size']
+    use_samples = config['data']['use_samples']
 
     data_size = config['data']['data_size']
     use_samples = config['data']['use_samples']

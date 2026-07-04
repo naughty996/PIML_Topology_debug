@@ -96,8 +96,7 @@ def run_optimization():
     N_conv = config['optimization']['N_conv']
     conv_tol = config['optimization']['con_tol']
 
-    penalty_init = 10.0
-    penalty_final = config['optimization']['penalty_weight']
+
 
     os.makedirs('./results_topo', exist_ok=True)
     csv_file = './results_topo/optimization_history.csv'
@@ -116,11 +115,17 @@ def run_optimization():
     print("=" * 85)
 
     c_initial = None  # 用于记录初始合规度基准
-    #是否已有ls模型，如果没有重新训练
+
+    lam = 0.0  # 拉格朗日乘子 (Lambda)
+    gamma = 10.0  # 惩罚系数 (Gamma)
+    gamma_max = 500.0  # 惩罚上限
+    delta_gamma = 2.0  # 增长步长
+    nR = 100
+
     for step in range(1, max_iter + 1):
         t0 = time.time()
         optimizer.zero_grad(set_to_none=True)
-        #水平集定义密度
+
         raw_phi_nodes = ls_net(node_inputs)
         raw_density = phi_to_rho_subgrid_area(raw_phi_nodes, nx, ny, device)
         rho_field = apply_darcy_bc_mask(raw_density, nx, ny)
@@ -143,15 +148,24 @@ def run_optimization():
             c_initial = compliance.item() if hasattr(compliance, 'item') else float(compliance)
         compliance_normalized = compliance / c_initial
 
+        # 1. 计算约束违规量 (G)
         vol_constraint = current_vol - vol_target
-        current_penalty_weight = penalty_init + (penalty_final - penalty_init) * (step / max_iter)
-        vol_penalty = current_penalty_weight * (vol_constraint ** 2)
 
-        # === 修改：使用归一化合规度组装 Loss ===
+        # 2. 计算 ALM 损失函数
+        # Loss = Compliance_normalized + lam * G + 0.5 * gamma * G^2
+        vol_penalty = lam * vol_constraint + 0.5 * gamma * (vol_constraint ** 2)
         loss_total = compliance_normalized + vol_penalty
 
         loss_total.backward()
         optimizer.step()
+
+        # 3. 自适应更新 Lambda 和 Gamma (ALM 核心)
+        if step % 20 == 0:  # 每 20 步更新一次乘子，保持稳定性
+            if step <= nR:
+                lam += gamma * vol_constraint.item()
+            else:
+                lam += gamma * vol_constraint.item()
+                gamma = min(gamma + delta_gamma, gamma_max)
 
         t_iter = time.time() - t0
         history['obj'].append(compliance.item())
@@ -159,13 +173,10 @@ def run_optimization():
         history['loss'].append(loss_total.item())
         history['time'].append(t_iter)
 
-        print(
-            f"{step:05d} | {compliance.item():12.4f} | {current_vol.item():8.4f} | {loss_total.item():10.4f} | {current_penalty_weight:8.1f} | {t_iter:8.3f}")
-
+        print(f"{step:05d} | {compliance.item():12.4f} | {current_vol.item():8.4f} | {loss_total.item():10.4f} | Lam:{lam:8.2f} Gam:{gamma:5.1f} | {t_iter:8.3f}")
         with open(csv_file, mode='a', newline='') as f:
-            csv.writer(f).writerow(
-                [step, compliance.item(), current_vol.item(), loss_total.item(), current_penalty_weight, t_iter])
-
+            # 记录 Lam 和 Gamma，确保每一行都有迹可循
+            csv.writer(f).writerow([step, compliance.item(), current_vol.item(), loss_total.item(), lam, gamma, t_iter])
         # === 修改：不再单独落盘，追加至内存列表 ===
         save_interval = config['optimization']['save_interval']
         if save_interval > 0 and (step % save_interval == 0 or step == max_iter):
@@ -185,7 +196,7 @@ def run_optimization():
             numerator = np.abs(np.sum(recent_objs - c_base))
             denominator = np.sum(recent_objs) + 1e-30
             obj_error = numerator / denominator
-            vol_err = abs(vol_constraint.item()/vol_target.item())
+            vol_err = abs(vol_constraint.item())
 
             if obj_error <= conv_tol and vol_err <= conv_tol:
                 print("\n" + "*" * 55)
@@ -195,7 +206,6 @@ def run_optimization():
                 break
 
     # === 新增：循环结束后，将所有矩阵堆叠为 3D 结构并一次性保存 ===
-    #直接保存
     if len(phi_history_all) > 0:
         phi_3d = np.stack(phi_history_all, axis=-1)
         rho_3d = np.stack(rho_history_all, axis=-1)

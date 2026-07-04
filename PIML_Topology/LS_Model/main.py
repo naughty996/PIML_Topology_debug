@@ -63,15 +63,9 @@ if __name__ == '__main__':
     domain_type = config_data['domain']
 
     cache_np = build_precompute(case_idx, config_data, config.optimize_paras)
-    # Split backend:
-    #   - cache_torch_density stays on the network device for phi -> rho mapping;
-    #   - cache_torch_cpu stays on CPU for full dynamic FEM objective/sensitivity,
-    #     sensitivity filtering and ZPR update.
-    cache_torch_density = cache_to_torch(cache_np, device=device, dtype=dtype)
-    cache_torch_cpu = cache_to_torch(cache_np, device='cpu', dtype=dtype)
 
     phi = initial_ls_func(nx, ny, domain_type, config.optimize_paras['H_d'], config_data['ls_r']).reshape(-1, 1, order='F')
-    node_coordinate = cache_np['node_coordinate']
+    node_coordinate = cache_np['node_coordinate']#改到gpu上
 
     pretrain_dir = config_data['model_path']
     os.makedirs(pretrain_dir, exist_ok=True)
@@ -131,3 +125,7 @@ if __name__ == '__main__':
     n_params = sum(p.numel() for p in topo_model.parameters() if p.requires_grad)
     print(f'[InitialModel] Loaded topology model relative L2 error = {loaded_rel_l2:.6e}', flush=True)
     print(f'[InitialModel] Trainable parameters = {n_params}', flush=True)
+    #调用opt
+    #phi最终结果传过来，其余用self
+    #obj，vol变化图，每一步的时间（迭代历史），loss，
+    #日志信息，obj，vol，avetime，time

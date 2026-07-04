@@ -1,0 +1,17 @@
+Pretraining Summary
+===================
+Case name            : cantilever
+Initial topology     : multi_holes
+Grid size            : 51 x 21
+Input dimension      : 2
+Output dimension     : 1
+Activation           : sine
+Hidden layers        : 3
+Hidden dimension     : 64
+Epochs               : 30000
+Learning rate        : 0.001
+Dtype                : float64
+Device               : cuda
+Best relative L2     : 2.428327e-02
+Model path           : ./model_data/mp_multi_holes_mesh51_21_net3_64_r0.15.pt
+Phi prediction (.mat): ./model_data/mp_multi_holes_mesh51_21_net3_64_r0.15_phi_pred.mat
