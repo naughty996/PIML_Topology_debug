@@ -7,3 +7,13 @@
 /~$ DOCX 文档.docx
 /新建 DOCX 文档.docx
 *.h5
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+*.bmp
+
+# 忽略数据文件
+*.csv
+*.mat
